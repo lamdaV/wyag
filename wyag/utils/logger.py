@@ -22,3 +22,6 @@ class Logger(object):
   def log(self, message, color):
     if self.verbose:
       click.secho(message, fg=color)
+  
+  def echo(self, message):
+    click.echo(message)
