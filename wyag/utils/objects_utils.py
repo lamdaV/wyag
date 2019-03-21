@@ -73,7 +73,7 @@ class InvalidObjectType(Exception):
 
 def generate_object_hash(object_type, write, file, logger):
   repo = Repository(os.getcwd(), logger) if write else None
-  with open(file, "r") as file_descriptor:
+  with open(file, "rb") as file_descriptor:
     data = file_descriptor.read()
     git_object = GIT_OBJECT_TYPE_TO_CLASS.get(object_type, None)
     if git_object is None:
