@@ -2,6 +2,7 @@ import os
 import zlib
 import hashlib
 import collections
+import re
 
 from wyag.objects.repository import Repository
 from wyag.objects.git_object import GIT_OBJECT_TYPE_TO_CLASS, GIT_OBJECT_TYPES,\
@@ -82,8 +83,55 @@ def generate_object_hash(object_type, write, file, logger):
       git_object.initialize()
       return write_object(git_object, write=write)
 
+class ReferenceError(Exception):
+  pass
+
 def find_object(repo, name, object_type=None, follow=True):
-  return name
+  shas = resolve_object(repo, name)
+  if len(shas) == 0:
+    raise ReferenceError("No such reference {}".format(name))
+  elif len(shas) > 1:
+    raise ReferenceError("Ambiguous reference {} with candidates {}".format(name, shas))
+  
+  sha = shas[0]
+  if object_type is None:
+    return sha
+  
+  while True:
+    git_object = read_object(repo, sha)
+    if git_object.object_type == object_type:
+      return sha
+    elif not follow:
+      return None
+    elif git_object.object_type == "tag":
+      sha = git_object.data.get(b"object").decode("ascii")
+    elif git_object.object_type == "commit" and object_type == "tree":
+      sha = git_object.data.get(b"tree")[0].decode("ascii")
+    else:
+      return None
+
+def resolve_object(repo, name):
+  name = name.strip()
+  if len(name) == 0:
+    return []
+  elif name == "HEAD":
+    return [resolve_reference(repo, "HEAD")]
+
+  candidates = []
+  hashRE = re.compile(r"^[0-9A-Fa-f]{40}$")
+  shortenHashRE = re.compile(r"^[0-9][A-F][a-f]{4,40}$")
+  if hashRE.match(name):
+    # full hash and matches schema
+    return [name.lower()]
+  elif shortenHashRE.match(name):
+    name = name.lower()
+    prefix, other = name[:2], name[2:]
+    path = repo.repo_dir("objects", prefix, mkdir=False)
+    if path is not None:
+      for file in os.listdir(path):
+        if file.startswith(other):
+          candidates.append(file)
+  return candidates
 
 def generate_graphviz_log(repo, sha, logger, seen=set()):
   if sha in seen:

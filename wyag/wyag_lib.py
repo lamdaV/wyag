@@ -117,7 +117,7 @@ def ls_tree(context, git_object):
   "Pretty-print a tree object."
   """
   repo = find_repo(os.getcwd(), context.logger)
-  object_sha = find_object(repo, git_object, object_type=b"tree")
+  object_sha = find_object(repo, git_object, object_type="tree")
   git_object = read_object(repo, object_sha)
 
   for node in git_object.data:
