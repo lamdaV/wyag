@@ -154,7 +154,7 @@ def checkout(context, commit_sha, path):
       return
     tree_ref, *_ = tree_refs
     git_object = read_object(repo, tree_ref.decode("ascii"))
-  
+
   if os.path.exists(path):
     if not os.path.isdir(path):
       context.logger.echo("Not a directory: {}!".format(path))

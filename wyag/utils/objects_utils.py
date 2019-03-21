@@ -7,10 +7,10 @@ import re
 from wyag.objects.repository import Repository
 from wyag.objects.git_object import GIT_OBJECT_TYPE_TO_CLASS, GIT_OBJECT_TYPES,\
   GitTag
-  
+
 class RepositoryNotFound(Exception):
   pass
-  
+
 def find_repo(path, logger, required=True):
   logger.info("find_repo called with: {}".format({"path": path, "logger": logger, "required": required}))
   path = path if path[-1] != os.sep else path[:-1]
@@ -18,7 +18,7 @@ def find_repo(path, logger, required=True):
 
   if os.path.isdir(os.path.join(real_path, ".git")):
     return Repository(real_path, logger)
-  
+
   parent = os.path.dirname(real_path)
   if parent == path:
     if required:
@@ -65,7 +65,7 @@ def write_object(git_object, write=True):
     object_path = git_object.repo.repo_file("objects", sha[:2], sha[2:], mkdir=write)
     with open(object_path, "wb") as object_file:
       object_file.write(zlib.compress(result))
-  
+
   return sha
 
 class InvalidObjectType(Exception):
@@ -77,7 +77,7 @@ def generate_object_hash(object_type, write, file, logger):
     data = file_descriptor.read()
     git_object = GIT_OBJECT_TYPE_TO_CLASS.get(object_type, None)
     if git_object is None:
-      raise InvalidObjectType("Object type {} is not one of {}".format(object_type, GIT_OBJECT_TYPES)) 
+      raise InvalidObjectType("Object type {} is not one of {}".format(object_type, GIT_OBJECT_TYPES))
     else:
       git_object = git_object(repo, data)
       git_object.initialize()
@@ -92,11 +92,11 @@ def find_object(repo, name, object_type=None, follow=True):
     raise ReferenceError("No such reference {}".format(name))
   elif len(shas) > 1:
     raise ReferenceError("Ambiguous reference {} with candidates {}".format(name, shas))
-  
+
   sha = shas[0]
   if object_type is None:
     return sha
-  
+
   while True:
     git_object = read_object(repo, sha)
     if git_object.object_type == object_type:
@@ -175,7 +175,7 @@ def resolve_reference(repo, ref):
 def list_reference(repo, path=None):
   if path is None:
     path = repo.repo_dir("refs")
-  dictionary = collections.OrderedDict()   
+  dictionary = collections.OrderedDict()
 
   for item in sorted(os.listdir(path)):
     item_path = os.path.join(path, item)
@@ -183,7 +183,7 @@ def list_reference(repo, path=None):
       dictionary[item] = list_reference(repo, path=item_path)
     else:
       dictionary[item] = resolve_reference(repo, item_path)
-  
+
   return dictionary
 
 def print_reference(repo, references_dict, logger, with_hash=True, prefix=""):

@@ -13,7 +13,7 @@ class Repository(object):
     self.force = force
     self.config = configparser.ConfigParser()
     self.logger = logger
-      
+
   def repo_path(self, *path):
     """
     Returns the path joined to the Repository's gitdir.
@@ -22,14 +22,14 @@ class Repository(object):
 
   def repo_file(self, *path, mkdir=False):
     """
-    Returns the joined paths. If mkdir is True, the paths will be created if possible. 
+    Returns the joined paths. If mkdir is True, the paths will be created if possible.
     Returns None otherwise.
     """
     if self.repo_dir(*path[:-1], mkdir=mkdir) is not None:
       return self.repo_path(*path)
     else:
       return None
-  
+
   def repo_dir(self, *path, mkdir=False):
     """
     Returns the joined paths if it exists and is a directory or mkdir is True.
@@ -43,7 +43,7 @@ class Repository(object):
         return repo_path
       else:
         raise RepositoryInitializationError("Not a directory {}".format(repo_path))
-    
+
     if mkdir:
       os.makedirs(repo_path)
       return repo_path
@@ -80,7 +80,7 @@ class Repository(object):
     elif not self.force:
       raise RepositoryInitializationError("Configuration file is missing")
     self.logger.info("loaded config" if not self.force else "skipping config load")
-    
+
     # Verify repository format version
     if not self.force:
       self.info("verifying repository format version...")
@@ -115,4 +115,3 @@ class Repository(object):
     self.logger.success("initialized git repo")
 
 
-    
