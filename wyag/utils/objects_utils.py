@@ -1,6 +1,7 @@
 import os
 import zlib
 import hashlib
+import collections
 
 from wyag.objects.repository import Repository
 from wyag.objects.git_object import GIT_OBJECT_TYPE_TO_CLASS, GIT_OBJECT_TYPES
@@ -115,4 +116,40 @@ def checkout_tree(repo, git_tree, path):
     elif git_object.object_type == "blob":
       with open(destination, "wb") as blob:
         blob.write(git_object.data)
-    
+
+def resolve_reference(repo, ref):
+  ref_file = repo.repo_file(ref)
+  ref_prefix = "ref: "
+  with open(ref_file) as ref_descriptor:
+    data = ref_descriptor.read().rstrip()
+    if data.startswith(ref_prefix):
+      return resolve_reference(data[len(ref_prefix):])
+    else:
+      return data
+
+def list_reference(repo, path=None):
+  if path is None:
+    path = repo.repo_dir("refs")
+  dictionary = collections.OrderedDict()   
+
+  for item in sorted(os.listdir(path)):
+    item_path = os.path.join(path, item)
+    if os.path.isdir(item_path):
+      dictionary[item] = list_reference(repo, path=item_path)
+    else:
+      dictionary[item] = resolve_reference(repo, item_path)
+  
+  return dictionary
+
+def print_reference(repo, references_dict, logger, with_hash=True, prefix=""):
+  identifier_format = "{}{}{{}}".format(prefix, "/" if prefix != "" else "")
+  for key, reference in references_dict.items():
+    identifier = identifier_format.format(key)
+    if isinstance(reference, str):
+      hash_part = ""
+      if with_hash:
+        hash_part = "{} ".format(reference)
+      logger.echo("{hash}{identifier}".format(hash=hash_part,
+                                              identifier=identifier))
+    else:
+      print_reference(repo, reference, logger, with_hash=with_hash, prefix=identifier)

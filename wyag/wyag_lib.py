@@ -10,7 +10,8 @@ from wyag.objects.repository import Repository, RepositoryInitializationError
 from wyag.objects.git_object import GIT_OBJECT_TYPES
 from wyag.utils.logger import Logger
 from wyag.utils.objects_utils import find_repo, find_object, read_object, \
-  generate_object_hash, InvalidObjectType, generate_graphviz_log, checkout_tree
+  generate_object_hash, InvalidObjectType, generate_graphviz_log, checkout_tree, \
+  list_reference, print_reference
 
 class Context(object):
   def __init__(self, verbose):
@@ -34,7 +35,8 @@ class AliasedGroup(click.Group):
         "cat_file": "cat-file",
         "hash_object": "hash-object",
         "ls_tree": "ls-tree",
-        "co": "checkout"
+        "co": "checkout",
+        "show_ref": "show-ref"
       }
       aliased_command = alias.get(command_name, None)
       if aliased_command is not None:
@@ -165,4 +167,13 @@ def checkout(context, commit_sha, path):
 
   checkout_tree(repo, git_object, os.path.realpath(path).encode())
 
+@cli.command()
+@click.pass_obj
+def show_ref(context):
+  """
+  List references.
+  """
+  repo = find_repo(os.getcwd(), context.logger)
+  references_dict = list_reference(repo)
+  print_reference(repo, references_dict, context.logger)
 
