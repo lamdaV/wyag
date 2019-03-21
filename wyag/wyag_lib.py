@@ -10,7 +10,7 @@ from wyag.objects.repository import Repository, RepositoryInitializationError
 from wyag.objects.git_object import GIT_OBJECT_TYPES
 from wyag.utils.logger import Logger
 from wyag.utils.objects_utils import find_repo, find_object, read_object, \
-  generate_object_hash, InvalidObjectType, generate_graphviz_log
+  generate_object_hash, InvalidObjectType, generate_graphviz_log, checkout_tree
 
 class Context(object):
   def __init__(self, verbose):
@@ -33,7 +33,8 @@ class AliasedGroup(click.Group):
       alias = {
         "cat_file": "cat-file",
         "hash_object": "hash-object",
-        "ls_tree": "ls-tree"
+        "ls_tree": "ls-tree",
+        "co": "checkout"
       }
       aliased_command = alias.get(command_name, None)
       if aliased_command is not None:
@@ -107,7 +108,7 @@ def log(context, commit):
   context.logger.echo("}")
 
 @cli.command()
-@click.argument("git_object")
+@click.argument("git_object", type=click.STRING)
 @click.pass_obj
 def ls_tree(context, git_object):
   """
@@ -124,5 +125,44 @@ def ls_tree(context, git_object):
                                                                     object_type=object_type,
                                                                     sha=node.sha,
                                                                     path=node.path.decode("ascii")))
+
+@cli.command()
+@click.argument("commit_sha", type=click.STRING)
+@click.argument("path", type=click.Path(file_okay=False))
+@click.pass_obj
+def checkout(context, commit_sha, path):
+  """
+  Checkout a commit inside of a directory.
+
+  commit_sha: The commit or tree to checkout.
+  path: The EMPTY directory to checkout on.
+  """
+  repo = find_repo(os.getcwd(), context.logger)
+  object_sha = find_object(repo, commit_sha)
+  git_object = read_object(repo, object_sha)
+
+  # If it is of type commit, grab the tree reference.
+  if git_object.object_type == "commit":
+    tree_refs = git_object.data.get(b"tree", [])
+    if len(tree_refs) == 0:
+      context.logger.echo("Commit object missing tree reference: {}".format(object_sha))
+      return
+    elif len(tree_refs) > 1:
+      context.logger.echo("Commit object has more than one tree reference: sha={} refs={}".format(object_sha, tree_refs))
+      return
+    tree_ref, *_ = tree_refs
+    git_object = read_object(repo, tree_ref.decode("ascii"))
+  
+  if os.path.exists(path):
+    if not os.path.isdir(path):
+      context.logger.echo("Not a directory: {}!".format(path))
+      return
+    elif len(os.listdir(path)) > 0:
+      context.logger.echo("Not empty: {}!".format(path))
+      return
+  else:
+    os.makedirs(path)
+
+  checkout_tree(repo, git_object, os.path.realpath(path).encode())
 
 

@@ -94,7 +94,8 @@ class GitTreeNode(object):
     self.sha = sha
 
 class TreeParser(object):
-  SHA_LENGTH = 20 
+  def __init__(self):
+    self.sha_length = 20
 
   def parse_one(self, raw_data, start=0):
     space_index = raw_data.find(b" ", start)
@@ -108,7 +109,7 @@ class TreeParser(object):
     path = raw_data[space_index + 1:null_index]
     
     # due to inclusive-exclusive, include the last bit
-    sha_end = null_index + SHA_LENGTH + 1 
+    sha_end = null_index + self.sha_length + 1 
     sha = hex(int.from_bytes(raw_data[null_index + 1:sha_end], "big"))
     # hex constructs a string prefixed with 0x, drop that.
     sha = sha[2:]

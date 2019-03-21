@@ -103,3 +103,16 @@ def generate_graphviz_log(repo, sha, logger, seen=set()):
     decoded_parent = parent.decode("ascii")
     logger.echo("c_{} -> c_{}".format(sha, decoded_parent))
     generate_graphviz_log(repo, decoded_parent, logger, seen=seen)
+
+def checkout_tree(repo, git_tree, path):
+  for node in git_tree.data:
+    git_object = read_object(repo, node.sha)
+    destination = os.path.join(path, node.path)
+
+    if git_object.object_type == "tree":
+      os.mkdir(destination)
+      checkout_tree(repo, git_object, destination)
+    elif git_object.object_type == "blob":
+      with open(destination, "wb") as blob:
+        blob.write(git_object.data)
+    
