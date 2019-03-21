@@ -9,8 +9,8 @@ import zlib
 from wyag.objects.repository import Repository, RepositoryInitializationError
 from wyag.objects.git_object import GIT_OBJECT_TYPES
 from wyag.utils.logger import Logger
-from wyag.utils.objects_utils import repo_find, find_object, read_object, \
-  generate_object_hash, InvalidObjectType
+from wyag.utils.objects_utils import find_repo, find_object, read_object, \
+  generate_object_hash, InvalidObjectType, generate_graphviz_log
 
 class Context(object):
   def __init__(self, verbose):
@@ -67,13 +67,13 @@ def init(context, path):
 
 @cli.command()
 @click.argument("object_type", type=click.Choice(GIT_OBJECT_TYPES, case_sensitive=False))
-@click.argument("object_name")
+@click.argument("object_name", type=click.STRING)
 @click.pass_obj
 def cat_file(context, object_type, object_name):
   """
   Provide content of repository objects.
   """
-  repo = repo_find(os.getcwd(), context.logger)
+  repo = find_repo(os.getcwd(), context.logger)
   sha = find_object(repo, object_name, object_type=object_type)
   git_object = read_object(repo, sha)
   context.logger.echo(git_object.serialize())
@@ -84,14 +84,25 @@ def cat_file(context, object_type, object_name):
 @click.argument("file", type=click.Path(exists=True, dir_okay=False))
 @click.pass_obj
 def hash_object(context, object_type, write, file):
+  """
+  Compute object ID and optionally creates a blob from a file.
+  """
   try:
     sha = generate_object_hash(object_type, write, file, context.logger)
     context.logger.echo(sha)
   except InvalidObjectType as e:
     context.logger.error(str(e))
-  
-
 
 @cli.command()
-def echo():
-  click.echo("hello world")
+@click.argument("commit", type=click.STRING, default="HEAD")
+@click.pass_obj
+def log(context, commit):
+  """
+  Display history of a given commit.
+  """
+  repo = find_repo(os.getcwd(), context.logger)
+  context.logger.echo("digraph wyaglog{")
+  generate_graphviz_log(repo, find_object(repo, commit), context.logger)
+  context.logger.echo("}")
+
+

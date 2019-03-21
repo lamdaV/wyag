@@ -8,8 +8,8 @@ from wyag.objects.git_object import GIT_OBJECT_TYPE_TO_CLASS, GIT_OBJECT_TYPES
 class RepositoryNotFound(Exception):
   pass
   
-def repo_find(path, logger, required=True):
-  logger.info("repo_find called with: {'path': {}, 'logger': {}, 'required': {}}".format(path, logger, required))
+def find_repo(path, logger, required=True):
+  logger.info("find_repo called with: {}".format({"path": path, "logger": logger, "required": required}))
   path = path if path[-1] != os.sep else path[:-1]
   real_path = os.path.realpath(path)
 
@@ -22,13 +22,13 @@ def repo_find(path, logger, required=True):
       raise RepositoryNotFound("No git directory")
     else:
       return None
-  return repo_find(parent, logger, required=required)
+  return find_repo(parent, logger, required=required)
 
 class MalformedObject(Exception):
   pass
 
 def read_object(repo, sha):
-  object_path = repo.repo_file(sha[:2], sha[2:])
+  object_path = repo.repo_file("objects", sha[:2], sha[2:])
 
   with open(object_path, "rb") as object_file:
     raw_object_file = zlib.decompress(object_file.read())
@@ -47,9 +47,8 @@ def read_object(repo, sha):
     git_object = GIT_OBJECT_TYPE_TO_CLASS.get(object_type.decode(), None)
     if git_object is None:
       raise MalformedObject("Invalid object_type: {}".format(object_type))
-    else:
-      return git_object(repo, data)
 
+    git_object = git_object(repo, data)
     git_object.initialize()
     return git_object
 
@@ -87,3 +86,20 @@ def generate_object_hash(object_type, write, file, logger):
 
 def find_object(repo, name, object_type=None, follow=True):
   return name
+
+def generate_graphviz_log(repo, sha, logger, seen=set()):
+  if sha in seen:
+    return
+  seen.add(sha)
+  commit = read_object(repo, sha)
+  assert(commit.object_type == "commit")
+
+  parents = commit.data.get(b"parent", [])
+  # Check if it is the first commit.
+  if len(parents) == 0:
+    logger.echo("c_{}".format(sha))
+    return
+  for parent in parents:
+    decoded_parent = parent.decode("ascii")
+    logger.echo("c_{} -> c_{}".format(sha, decoded_parent))
+    generate_graphviz_log(repo, decoded_parent, logger, seen=seen)
