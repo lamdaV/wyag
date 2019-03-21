@@ -32,7 +32,8 @@ class AliasedGroup(click.Group):
       # Step two: lookup an explicit command alias
       alias = {
         "cat_file": "cat-file",
-        "hash_object": "hash-object"
+        "hash_object": "hash-object",
+        "ls_tree": "ls-tree"
       }
       aliased_command = alias.get(command_name, None)
       if aliased_command is not None:
@@ -104,5 +105,24 @@ def log(context, commit):
   context.logger.echo("digraph wyaglog{")
   generate_graphviz_log(repo, find_object(repo, commit), context.logger)
   context.logger.echo("}")
+
+@cli.command()
+@click.argument("git_object")
+@click.pass_obj
+def ls_tree(context, git_object):
+  """
+  "Pretty-print a tree object."
+  """
+  repo = find_repo(os.getcwd(), context.logger)
+  object_sha = find_object(repo, git_object, object_type=b"tree")
+  git_object = read_object(repo, object_sha)
+
+  for node in git_object.data:
+    padded_mode = "{}{}".format((6 - len(node.mode)) * "0", node.mode.decode("ascii"))
+    object_type = read_object(repo, node.sha).object_type
+    context.logger.echo("{mode} {object_type} {sha}\t{path}".format(mode=padded_mode,
+                                                                    object_type=object_type,
+                                                                    sha=node.sha,
+                                                                    path=node.path.decode("ascii")))
 
 

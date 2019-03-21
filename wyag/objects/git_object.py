@@ -85,16 +85,67 @@ class GitCommit(GitObject):
   def deserialize(self):
     return self.message_parser.parse_git_message(self.raw_data)
 
+class GitTreeNode(object):
+  __slots__ = ["mode", "path", "sha"]
+
+  def __init__(self, mode, path, sha):
+    self.mode = mode
+    self.path = path
+    self.sha = sha
+
+class TreeParser(object):
+  SHA_LENGTH = 20 
+
+  def parse_one(self, raw_data, start=0):
+    space_index = raw_data.find(b" ", start)
+    
+    # file mode
+    assert(space_index - start == 5 or space_index - start == 6)
+    mode = raw_data[start:space_index]
+
+    # path
+    null_index = raw_data.find(b"\x00", space_index)
+    path = raw_data[space_index + 1:null_index]
+    
+    # due to inclusive-exclusive, include the last bit
+    sha_end = null_index + SHA_LENGTH + 1 
+    sha = hex(int.from_bytes(raw_data[null_index + 1:sha_end], "big"))
+    # hex constructs a string prefixed with 0x, drop that.
+    sha = sha[2:]
+
+    return sha_end, GitTreeNode(mode, path, sha)
+  
+  def parse(self, raw_data):
+    position = 0
+    end = len(raw_data)
+    data = []
+    while position < end:
+      position, node = self.parse_one(raw_data, start=position)
+      data.append(node)
+    return data
+
 
 class GitTree(GitObject):
   def __init__(self, repo, raw_data=None):
     super().__init__(repo, raw_data)
+    self.tree_parser = TreeParser()
   
   def serialize(self):
-    return self.data
+    return self.serialize_tree()
 
   def deserialize(self):
-    return self.raw_data
+    return self.tree_parser.parse(self.raw_data)
+
+  def serialize_tree(self):
+    builder = b""
+    for node in self.data:
+      sha = int(node.sha, 16).to_bytes(20, byteorder="big")
+      builder += "{mode}{space}{path}{null}{sha}".format(mode=node.mode,
+                                                         space=b" ",
+                                                         path=node.path,
+                                                         null=b"\x00",
+                                                         sha=sha)
+    return builder
 
 class GitTag(GitObject):
   def __init__(self, repo, raw_data=None):
