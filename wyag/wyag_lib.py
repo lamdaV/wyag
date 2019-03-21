@@ -11,7 +11,7 @@ from wyag.objects.git_object import GIT_OBJECT_TYPES
 from wyag.utils.logger import Logger
 from wyag.utils.objects_utils import find_repo, find_object, read_object, \
   generate_object_hash, InvalidObjectType, generate_graphviz_log, checkout_tree, \
-  list_reference, print_reference
+  list_reference, print_reference, create_tag
 
 class Context(object):
   def __init__(self, verbose):
@@ -176,4 +176,22 @@ def show_ref(context):
   repo = find_repo(os.getcwd(), context.logger)
   references_dict = list_reference(repo)
   print_reference(repo, references_dict, context.logger)
+
+@cli.command()
+@click.argument("name", type=click.STRING, required=False, default=None)
+@click.argument("object_sha", type=click.STRING, default="HEAD")
+@click.option("-a", "--annotate", is_flag=True, default=False, flag_value=True, help="Whether to create a tag object.")
+@click.pass_obj
+def tag(context, name, object_sha, annotate):
+  """
+  List and create tags.
+  """
+  repo = find_repo(os.getcwd(), context.logger)
+  tag_type = "object" if annotate else "ref"
+  if name is not None:
+    create_tag(repo, name, object_sha, tag_type=tag_type)
+  else:
+    references_dict = list_reference(repo)
+    print_reference(repo, references_dict.get("tag", {}), context.logger, with_hash=False)
+
 

@@ -4,7 +4,8 @@ import hashlib
 import collections
 
 from wyag.objects.repository import Repository
-from wyag.objects.git_object import GIT_OBJECT_TYPE_TO_CLASS, GIT_OBJECT_TYPES
+from wyag.objects.git_object import GIT_OBJECT_TYPE_TO_CLASS, GIT_OBJECT_TYPES,\
+  GitTag
   
 class RepositoryNotFound(Exception):
   pass
@@ -55,11 +56,7 @@ def read_object(repo, sha):
 
 def write_object(git_object, write=True):
   data = git_object.serialize()
-  result = "{object_type}{space}{size}{null}{data}".format(object_type=git_object.object_type,
-                                                           space=" ",
-                                                           size=str(len(data)),
-                                                           null="\x00",
-                                                           data=data).encode()
+  result = git_object.object_type.encode() + b" " + str(len(data)).encode() + b"\x00" + data
   sha = hashlib.sha1(result).hexdigest()
 
   # NOTE: git_object.repo may be None if poorly initialized.
@@ -153,3 +150,31 @@ def print_reference(repo, references_dict, logger, with_hash=True, prefix=""):
                                               identifier=identifier))
     else:
       print_reference(repo, reference, logger, with_hash=with_hash, prefix=identifier)
+
+def create_tag(repo, name, reference, tag_type="ref"):
+  git_object_sha = find_object(repo, reference)
+
+  if tag_type == "ref":
+    create_tag_ref(repo, name, git_object_sha)
+  elif tag_type == "object":
+    git_object = read_object(repo, reference)
+    raw_data = [
+      "object {}".format(git_object_sha),
+      "type {}".format(git_object.object_type),
+      "tag {}".format(name),
+      # TODO: need a way to read config... this will do for now.
+      "tagger lamdav <lamdav@example.com>",
+      "",
+      # TODO: using -a/--annotate would normally accept a message
+      "wyag generated annotated git tag"
+    ]
+    raw_data = "\n".join(raw_data).encode()
+    git_tag = GitTag(repo, raw_data=raw_data)
+    git_tag.initialize()
+    tag_sha = write_object(git_tag)
+    create_tag_ref(repo, name, tag_sha)
+
+def create_tag_ref(repo, name, sha):
+  tag_file = repo.repo_file("refs", "tags", name, mkdir=True)
+  with open(tag_file, "w") as tag_file_descriptor:
+    tag_file_descriptor.write(sha)

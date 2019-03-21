@@ -63,15 +63,20 @@ class MessageParser(object):
 
   def serialize_git_message(self, dictionary):
     builder = b""
+    messages = []
     for key, values in dictionary.items():
       if key == b"message":
+        messages = values
         continue
       for value in values:
-        builder += "{key}{space}{value}{newline}".format(key=key,
-                                                        space=b" ",
-                                                        value=value.replace(b"\n", b"\n "),
-                                                        newline=b"\n")
-    builder += "\n" + "".join(dictionary[b"message"])
+        builder += key + b" " + value.replace(b"\n", b"\n ") + b"\n"
+        # builder += "{key}{space}{value}{newline}".format(key=key,
+        #                                                  space=b" ",
+        #                                                  value=value.replace(b"\n", b"\n "),
+        #                                                  newline=b"\n").encode()
+    builder += b"\n"
+    builder += b"".join(messages)
+    builder += b"\n"
     return builder
 
 class GitCommit(GitObject):
@@ -148,15 +153,9 @@ class GitTree(GitObject):
                                                          sha=sha)
     return builder
 
-class GitTag(GitObject):
+class GitTag(GitCommit):
   def __init__(self, repo, raw_data=None):
     super().__init__(repo, raw_data)
-  
-  def serialize(self):
-    return self.data
-
-  def deserialize(self):
-    return self.raw_data
 
 GIT_OBJECT_TYPE_TO_CLASS = {
   "blob": GitBlob,
